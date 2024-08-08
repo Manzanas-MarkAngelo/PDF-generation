@@ -57,10 +57,11 @@ td {
   cursor: pointer;
 }
 
-.pagination button.disabled {
+.pagination button:disabled {
   background-color: #ddd;
   cursor: not-allowed;
 }
+
 
 #pdf-preview {
   width: 100%;

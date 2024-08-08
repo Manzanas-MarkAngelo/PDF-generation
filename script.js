@@ -1,20 +1,30 @@
-const rowsPerPage = 500;
+const rowsPerPage = 7;
 let currentPage = 1;
 let totalPages = 1;
+let totalRows = 0;  // Track total rows for pagination
 
+// Fetch data from the server
 function fetchTableData(page) {
+  console.log(`Fetching data for page ${page}`); // Debugging statement
   const url = `http://localhost/controller_lis/fetch_materials.php?page=${page}&limit=${rowsPerPage}`;
   
   fetch(url)
     .then(response => response.json())
     .then(data => {
-      populateTable(data.data);
-      totalPages = data.totalPages;
-      updatePaginationButtons();
+      console.log('Data received:', data); // Debugging statement
+      if (data && data.data) {
+        totalRows = data.totalRows; // Update total rows from server
+        populateTable(data.data);
+        totalPages = Math.ceil(totalRows / rowsPerPage);
+        updatePaginationButtons();
+      } else {
+        console.error('Invalid data format:', data);
+      }
     })
     .catch(error => console.error('Error fetching data:', error));
 }
 
+// Populate the HTML table with fetched data
 function populateTable(materials) {
   const tableBody = document.getElementById('table-body');
   tableBody.innerHTML = '';
@@ -34,13 +44,16 @@ function populateTable(materials) {
   });
 }
 
+// Update the state of pagination buttons
 function updatePaginationButtons() {
   const prevButton = document.getElementById('prev-button');
   const nextButton = document.getElementById('next-button');
-  
-  prevButton.classList.toggle('disabled', currentPage === 1);
-  nextButton.classList.toggle('disabled', currentPage >= totalPages);
 
+  // Enable or disable buttons
+  prevButton.disabled = currentPage === 1;
+  nextButton.disabled = currentPage >= totalPages;
+
+  // Add event listeners to buttons
   prevButton.onclick = () => {
     if (currentPage > 1) {
       currentPage--;
@@ -54,11 +67,15 @@ function updatePaginationButtons() {
       fetchTableData(currentPage);
     }
   };
+
+  // Log current page and total pages for debugging
+  console.log(`Current Page: ${currentPage}, Total Pages: ${totalPages}`);
 }
 
 // Initial fetch
 fetchTableData(currentPage);
 
+// Generate PDF preview
 function generatePDFPreview() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF('landscape');
@@ -68,48 +85,51 @@ function generatePDFPreview() {
   // Show loading indicator
   document.getElementById('loading-indicator').style.display = 'block';
 
-  // Extract table data from the HTML table
-  const tableBody = document.getElementById('table-body');
-  const tableRows = Array.from(tableBody.getElementsByTagName('tr'));
+  // Fetch all data for PDF generation
+  fetch('http://localhost/controller_lis/fetch_materials.php?limit=100000') // Adjust limit as needed
+    .then(response => response.json())
+    .then(data => {
+      const tableData = data.data.map(material => [
+        material.accnum,
+        material.author,
+        material.title,
+        material.copyright,
+        material.callno,
+        material.subj,
+        material.status
+      ]);
 
-  const tableData = tableRows.map(row => {
-    const cells = row.getElementsByTagName('td');
-    return [
-      cells[0].innerText,
-      cells[1].innerText,
-      cells[2].innerText,
-      cells[3].innerText,
-      cells[4].innerText,
-      cells[5].innerText,
-      cells[6].innerText
-    ];
-  });
+      doc.setFontSize(16);
+      doc.setTextColor("#800000");
+      doc.text(title, doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
 
-  doc.setFontSize(16);
-  doc.setTextColor("#800000");
-  doc.text(title, doc.internal.pageSize.getWidth() / 2, 15, { align: "center" });
+      doc.setFontSize(12);
+      doc.setTextColor("#000000");
+      doc.text(subtitle, doc.internal.pageSize.getWidth() / 2, 23, { align: "center" });
 
-  doc.setFontSize(12);
-  doc.setTextColor("#000000");
-  doc.text(subtitle, doc.internal.pageSize.getWidth() / 2, 23, { align: "center" });
+      let startY = 30;
 
-  let startY = 30;
-  doc.autoTable({
-    head: [['Accession No.', 'Author', 'Title', 'Copyright', 'Call No.', 'ISBN', 'Remarks']],
-    body: tableData,
-    startY: startY,
-    theme: 'grid',
-    headStyles: { fillColor: [76, 175, 80], textColor: [255, 255, 255] },
-    didDrawPage: (data) => {
-      startY = data.cursor.y; // Update startY for new page
-    }
-  });
+      doc.autoTable({
+        head: [['Accession No.', 'Author', 'Title', 'Copyright', 'Call No.', 'ISBN', 'Remarks']],
+        body: tableData,
+        startY: startY,
+        theme: 'grid',
+        headStyles: { fillColor: [76, 175, 80], textColor: [255, 255, 255] },
+        didDrawPage: (data) => {
+          startY = data.cursor.y; // Update startY for new page
+        }
+      });
 
-  const pdfPreview = doc.output('bloburl');
-  document.getElementById('pdf-preview').src = pdfPreview;
+      const pdfPreview = doc.output('bloburl');
+      document.getElementById('pdf-preview').src = pdfPreview;
 
-  // Hide loading indicator
-  document.getElementById('loading-indicator').style.display = 'none';
+      // Hide loading indicator
+      document.getElementById('loading-indicator').style.display = 'none';
+    })
+    .catch(error => {
+      console.error('Error generating PDF:', error);
+      document.getElementById('loading-indicator').style.display = 'none';
+    });
 }
 
 document.getElementById('generate-pdf-button').addEventListener('click', generatePDFPreview);
