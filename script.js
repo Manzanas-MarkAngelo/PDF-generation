@@ -95,7 +95,7 @@ function generatePDFPreview() {
         material.title,
         material.copyright,
         material.callno,
-        material.subj,
+        material.isbn,
         material.status
       ]);
 
@@ -115,6 +115,19 @@ function generatePDFPreview() {
         startY: startY,
         theme: 'grid',
         headStyles: { fillColor: [76, 175, 80], textColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 70 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 50 },
+          5: { cellWidth: 30 },
+          6: { cellWidth: 20 }
+        },
+        styles: {
+          overflow: 'linebreak', // Enable text wrapping
+          cellPadding: 2 // Adjust padding for better fit
+        },
         didDrawPage: (data) => {
           startY = data.cursor.y; // Update startY for new page
         }
